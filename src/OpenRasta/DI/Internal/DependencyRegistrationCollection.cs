@@ -10,7 +10,7 @@ namespace OpenRasta.DI.Internal
     {
         readonly ConcurrentDictionary<Type, List<DependencyRegistration>> _registrations = new ConcurrentDictionary<Type, List<DependencyRegistration>>();
 
-        public IEnumerable<DependencyRegistration> this[Type serviceType] => GetSvcRegistrations(serviceType);
+        public IEnumerable<DependencyRegistration> this[Type serviceType] => GetSvcRegistrations(serviceType).ToList();
 
         public void Add(DependencyRegistration registration)
         {
@@ -19,10 +19,10 @@ namespace OpenRasta.DI.Internal
         }
 
         public DependencyRegistration GetRegistrationForService(Type type) =>
-            GetSvcRegistrations(type).LastOrDefault(x => x.LifetimeManager.IsRegistrationAvailable(x));
+            GetSvcRegistrations(type).ToList().LastOrDefault(x => x.LifetimeManager.IsRegistrationAvailable(x));
 
         public bool HasRegistrationForService(Type type) =>
-            GetSvcRegistrations(type).Any(x => x.LifetimeManager.IsRegistrationAvailable(x));
+            GetSvcRegistrations(type).ToList().Any(x => x.LifetimeManager.IsRegistrationAvailable(x));
 
         public void Destruct(string key, object instance)
         {
