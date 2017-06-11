@@ -8,33 +8,34 @@ namespace OpenRasta.DI.Internal
 {
     public class DependencyRegistrationCollection : IContextStoreDependencyCleaner
     {
-        readonly ConcurrentDictionary<Type, List<DependencyRegistration>> _registrations = new ConcurrentDictionary<Type, List<DependencyRegistration>>();
+        readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, DependencyRegistration>> _registrations = new ConcurrentDictionary<Type, ConcurrentDictionary<string, DependencyRegistration>>();
 
-        public IEnumerable<DependencyRegistration> this[Type serviceType] => GetSvcRegistrations(serviceType).ToList();
+        public IEnumerable<DependencyRegistration> this[Type serviceType] => GetSvcRegistrations(serviceType).Values;
 
         public void Add(DependencyRegistration registration)
         {
             registration.LifetimeManager.VerifyRegistration(registration);
-            GetSvcRegistrations(registration.ServiceType).Add(registration);
+            GetSvcRegistrations(registration.ServiceType).TryAdd(registration.Key, registration);
         }
 
         public DependencyRegistration GetRegistrationForService(Type type) =>
-            GetSvcRegistrations(type).ToList().LastOrDefault(x => x.LifetimeManager.IsRegistrationAvailable(x));
+            GetSvcRegistrations(type).Values.LastOrDefault(x => x.LifetimeManager.IsRegistrationAvailable(x));
 
         public bool HasRegistrationForService(Type type) =>
-            GetSvcRegistrations(type).ToList().Any(x => x.LifetimeManager.IsRegistrationAvailable(x));
+            GetSvcRegistrations(type).Values.Any(x => x.LifetimeManager.IsRegistrationAvailable(x));
 
         public void Destruct(string key, object instance)
         {
-            foreach (var reg in _registrations.Values)
+            foreach (var reg in _registrations)
             {
-                var toRemove = reg.Where(x => x.IsInstanceRegistration && x.Key == key).ToList();
+                reg.Value.TryGetValue(key, out DependencyRegistration matchingRegistration);
 
-                toRemove.ForEach(x => reg.Remove(x));
+                if (matchingRegistration?.IsInstanceRegistration == true)
+                    reg.Value.TryRemove(key, out DependencyRegistration _);
             }
         }
 
-        List<DependencyRegistration> GetSvcRegistrations(Type serviceType) =>
-            _registrations.GetOrAdd(serviceType, _ => new List<DependencyRegistration>());
+        ConcurrentDictionary<string, DependencyRegistration> GetSvcRegistrations(Type serviceType) =>
+            _registrations.GetOrAdd(serviceType, _ => new ConcurrentDictionary<string, DependencyRegistration>());
     }
 }
